@@ -6,7 +6,7 @@
 /*   By: maxandreseverin <maxandreseverin@studen    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/01 00:00:00 by maseveri          #+#    #+#             */
-/*   Updated: 2025/12/03 15:56:03 by maxandresev      ###   ########.fr       */
+/*   Updated: 2025/12/03 16:10:08 by maxandresev      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -92,10 +92,9 @@ char	*parse_config_elements(int fd, t_map *map, int *success)
 	char	*first_line;
 
 	elements_count = 0;
-	read_bytes = 1;
 	first_line = NULL;
 	*success = 1;
-	while (read_bytes == 1)
+	while (1)
 	{
 		read_bytes = get_next_line(fd, &line);
 		if (read_bytes != 1)
