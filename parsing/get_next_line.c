@@ -3,131 +3,53 @@
 /*                                                        :::      ::::::::   */
 /*   get_next_line.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: maxandreseverin <maxandreseverin@studen    +#+  +:+       +#+        */
+/*   By: aflandin <aflandin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/11/14 19:50:00 by maxandresev       #+#    #+#             */
-/*   Updated: 2025/12/03 15:33:28 by maxandresev      ###   ########.fr       */
+/*   Created: 2025/12/09 16:05:29 by aflandin          #+#    #+#             */
+/*   Updated: 2025/12/15 09:01:55 by aflandin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <stdlib.h>
-#include <unistd.h>
+#include "parsing.h"
 
-#ifndef BUFFER_SIZE
-# define BUFFER_SIZE 42
-#endif
-
-/* Forward declarations */
-size_t		ft_strlen_gnl(const char *s);
-char		*ft_strdup_gnl(const char *s);
-
-static char	*ft_strchr_gnl(const char *s, int c)
+bool	gnl_strnjoin_free(char **s1, const char *s2, size_t len)
 {
-	if (!s)
-		return (NULL);
-	while (*s)
-	{
-		if (*s == (char)c)
-			return ((char *)s);
-		s++;
-	}
-	if ((char)c == '\0')
-		return ((char *)s);
-	return (NULL);
+	char	*tmp;
+
+	if (!len)
+		return (true);
+	tmp = *s1;
+	*s1 = ft_strnjoin(*s1, s2, len);
+	free(tmp);
+	if (!*s1)
+		return (cub3d_error("gnl_strnjoin_free(): failed to join"), false);
+	return (true);
 }
 
-static char	*extract_and_save(char **storage)
+char	*get_next_line(int fd)
 {
-	char	*line;
-	char	*temp;
-	size_t	i;
-	size_t	j;
+	static char	buf[GNL_BUFFER_SIZE + 1];
+	char		*ret;
+	char		*tmp;
+	ssize_t		read_ret;
+	size_t		nl_len;
 
-	if (!*storage || !(*storage)[0])
-		return (NULL);
-	i = 0;
-	while ((*storage)[i] && (*storage)[i] != '\n')
-		i++;
-	line = malloc(i + ((*storage)[i] == '\n') + 1);
-	if (!line)
-		return (NULL);
-	j = -1;
-	while (++j < i)
-		line[j] = (*storage)[j];
-	if ((*storage)[i] == '\n')
-		line[j++] = '\n';
-	line[j] = '\0';
-	temp = *storage;
-	*storage = NULL;
-	if (temp[i] == '\n' && temp[i + 1])
-		*storage = ft_strdup_gnl(temp + i + 1);
-	free(temp);
-	return (line);
-}
-
-static char	*ft_strjoin_free(char *s1, char *s2, size_t len)
-{
-	char	*result;
-	size_t	i;
-	size_t	j;
-
-	if (!s2)
-		return (NULL);
-	result = malloc(ft_strlen_gnl(s1) + len + 1);
-	if (!result)
-		return (free(s1), NULL);
-	i = 0;
-	if (s1)
+	ret = NULL;
+	tmp = ft_strchr(buf, '\n');
+	while (!tmp)
 	{
-		while (s1[i])
-		{
-			result[i] = s1[i];
-			i++;
-		}
-	}
-	j = 0;
-	while (j < len)
-		result[i++] = s2[j++];
-	result[i] = '\0';
-	free(s1);
-	return (result);
-}
-
-static char	*read_and_store(int fd, char *storage)
-{
-	char	buffer[BUFFER_SIZE + 1];
-	ssize_t	bytes_read;
-
-	bytes_read = 1;
-	while (bytes_read > 0 && !ft_strchr_gnl(storage, '\n'))
-	{
-		bytes_read = read(fd, buffer, BUFFER_SIZE);
-		if (bytes_read == -1)
-			return (free(storage), NULL);
-		if (bytes_read == 0)
-			break ;
-		buffer[bytes_read] = '\0';
-		storage = ft_strjoin_free(storage, buffer, bytes_read);
-		if (!storage)
+		if (!gnl_strnjoin_free(&ret, buf, ft_strlen(buf)))
 			return (NULL);
+		read_ret = read(fd, buf, GNL_BUFFER_SIZE);
+		if (read_ret < 0)
+			return (cub3d_error(NULL),
+				perror("get_next_line(): read()"), NULL);
+		buf[read_ret] = '\0';
+		if (read_ret == 0)
+			return (ret);
+		tmp = ft_strchr(buf, '\n');
 	}
-	return (storage);
-}
-
-int	get_next_line(int fd, char **line)
-{
-	static char	*storage;
-
-	if (fd < 0 || BUFFER_SIZE <= 0 || !line)
-		return (-1);
-	storage = read_and_store(fd, storage);
-	if (!storage)
-	{
-		*line = NULL;
-		return (0);
-	}
-	*line = extract_and_save(&storage);
-	if (!*line)
-		return (0);
-	return (1);
+	nl_len = ft_strlen(tmp + 1);
+	gnl_strnjoin_free(&ret, buf, tmp - buf + 1);
+	return (ft_memmove(buf, tmp + 1, nl_len), buf[nl_len] = '\0', ret);
 }

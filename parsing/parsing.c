@@ -3,119 +3,84 @@
 /*                                                        :::      ::::::::   */
 /*   parsing.c                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: maxandreseverin <maxandreseverin@studen    +#+  +:+       +#+        */
+/*   By: aflandin <aflandin@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/11/14 14:32:50 by maxandresev       #+#    #+#             */
-/*   Updated: 2025/12/03 15:49:13 by maxandresev      ###   ########.fr       */
+/*   Created: 2025/12/07 16:38:22 by aflandin          #+#    #+#             */
+/*   Updated: 2025/12/15 09:18:35 by aflandin         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../include/cub3d.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <unistd.h>
-#include "./get_next_line.h"
+#include "parsing.h"
 
-/* ========================================================================= */
-/*                          FONCTIONS UTILITAIRES                            */
-/* ========================================================================= */
-
-/**
- * Alloue et initialise la structure t_map
- * Retourne NULL en cas d'erreur d'allocation
- */
-static t_map	*init_map(void)
+t_vec2i	map_get_dimension(t_map *map)
 {
-	t_map	*map;
+	t_vec2i	max;
+	t_vec2i	wpos;
+	int		i;
 
-	map = (t_map *)malloc(sizeof(t_map));
-	if (!map)
-		return (NULL);
-	map->north_texture = NULL;
-	map->south_texture = NULL;
-	map->east_texture = NULL;
-	map->west_texture = NULL;
-	map->wallcount = 0;
-	map->walls = NULL;
-	map->player.pos.x = -1.0f;
-	map->player.pos.y = -1.0f;
-	map->player.dir = -1.0f;
-	map->floor_color.r = -1;
-	map->floor_color.g = -1;
-	map->floor_color.b = -1;
-	map->ceiling_color.r = -1;
-	map->ceiling_color.g = -1;
-	map->ceiling_color.b = -1;
-	map->map_text = NULL;
-	return (map);
+	max = (t_vec2i){0};
+	i = 0;
+	while (i < map->wallcount)
+	{
+		wpos = map->walls[i];
+		if (wpos.x > max.x)
+			max.x = wpos.x;
+		if (wpos.y > max.y)
+			max.y = wpos.y;
+		i++;
+	}
+	return (max);
 }
 
-/**
- * Libère toute la mémoire allouée pour la structure t_map
- */
-static void	free_map(t_map *map)
+bool	map_path_valid(const char *path)
 {
-	free(map->north_texture);
-	free(map->south_texture);
-	free(map->east_texture);
-	free(map->west_texture);
-	free(map->walls);
-	free(map->map_text);
-	free(map);
+	const char	*extension;
+	size_t		extension_len;
+	size_t		path_len;
+
+	extension = EXTENSION_MAP;
+	extension_len = sizeof(EXTENSION_MAP) / sizeof(EXTENSION_MAP)[0] - 1;
+	path_len = ft_strlen(path);
+	return (path_len >= extension_len
+		&& ft_strcmp(path + path_len - extension_len, extension) == 0);
 }
 
-/**
- * Affiche un message d'erreur sur stderr
- */
-void	print_error(char *message)
-{
-	write(2, "Error\n", 6);
-	write(2, message, ftstrlen(message));
-	write(2, "\n", 1);
-}
-
-/* ========================================================================= */
-/*                       PARSING PRINCIPAL DU FICHIER                        */
-/* ========================================================================= */
-
-/**
- * Nettoie et retourne NULL en cas d'erreur
- */
-static t_map	*cleanup_and_fail(t_map *map, int fd)
-{
-	if (map)
-		free_map(map);
-	if (fd != -1)
-		close(fd);
-	return (NULL);
-}
-
-/**
- * Parse le fichier .cub complet
- * Retourne un pointeur vers t_map si succès, NULL si erreur
- */
-t_map	*parse_cub_file(char *filename)
+bool	map_create(t_map *map, const char *map_file)
 {
 	int		fd;
-	t_map	*map;
-	char	*first_line;
-	int		success;
 
-	if (!validate_filename(filename))
-		return (print_error("Invalid filename"), NULL);
-	fd = open_file(filename);
-	if (fd == -1)
-		return (NULL);
-	map = init_map();
 	if (!map)
-		return (print_error("Allocation failed"), cleanup_and_fail(NULL, fd));
-	first_line = parse_config_elements(fd, map, &success);
-	if (!success)
-		return (cleanup_and_fail(map, fd));
-	if (!read_map_lines(fd, map, first_line))
-		return (cleanup_and_fail(map, fd));
-	if (!validate_map(map))
-		return (cleanup_and_fail(map, fd));
+		return (false);
+	*map = (t_map){0};
+	if (!map_file)
+		return (cub3d_error("map_create(): given map path is NULL"), false);
+	if (!map_path_valid(map_file))
+		return (
+			cub3d_error(
+				"map_create(): map path must be a " EXTENSION_MAP " file"),
+			false);
+	fd = open(map_file, O_RDONLY);
+	if (fd < 0)
+		return (cub3d_error(NULL), perror("map_create(): open()"), false);
+	if (!parse_map_config(map, fd))
+		return (close(fd), map_destroy(map), false);
+	if (!parse_map_content(map, fd))
+		return (close(fd), map_destroy(map), false);
 	close(fd);
-	return (map);
+	if (!map_validate(map))
+		return (map_destroy(map), false);
+	return (true);
+}
+
+void	map_destroy(t_map *map)
+{
+	if (!map)
+		return ;
+	free(map->north_texture);
+	free(map->east_texture);
+	free(map->south_texture);
+	free(map->west_texture);
+	free(map->walls);
+	free(map->content);
+	*map = (t_map){0};
 }
