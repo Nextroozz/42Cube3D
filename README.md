@@ -92,12 +92,3 @@ Ce dépôt est destiné à un usage pédagogique (projet 42). Si vous souhaitez 
 
 - Auteur principal : Maxandre Severin et Adam Flandin
 - Licence : voir les fichiers de licence inclus dans `lib/minilibx` si vous réutilisez la MiniLibX.
-
----
-
-Si vous voulez, je peux :
-- adapter le README pour un public non-42 (plus d'explications pédagogiques),
-- ajouter des captures d'écran et GIFs d'exécution dans `assets/`,
-- générer un guide de debug plus détaillé ou des exemples d'usage.
-
-Dites-moi ce que vous préférez et j'itère.
